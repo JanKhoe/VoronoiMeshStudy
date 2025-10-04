@@ -5,23 +5,25 @@ class Point {
 public:
     Point();                          
     void setup(float radius, ofColor col);
-    void update();
-    void draw();
+    virtual void update(float deltatime) = 0;
+    virtual void draw();
+    virtual ~Point() = default;
 
     void setPosition(float x, float y, float z);
     void setColor(ofColor col);
     
-    float radius;
+    
 	glm::vec3 position;
-    float timer;
+    
 
     bool operator==(const Point& other) const {
         return position == other.position;
     }
+    ofColor color;
 
 
 private:
     ofSpherePrimitive sphere;
-    ofColor color;
+    
 	
 };

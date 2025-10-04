@@ -2,10 +2,15 @@
 
 #include "ofMain.h"
 #include "Point.h" 
+#include "CrystallizingPoint.h"
 
 #define BOUND_X 800
 #define BOUND_Y 800
 #define DELTA 0.5
+
+enum simType {
+	CRYSTAL
+};
 
 class ofApp : public ofBaseApp{
 
@@ -26,10 +31,10 @@ class ofApp : public ofBaseApp{
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
 
-		vector<glm::vec2> findIntersection(Point p1, Point p2);
+		vector<glm::vec2> findIntersection(CrystallizingPoint& p1, CrystallizingPoint& p2);
 		vector<glm::vec2> allEdges;
 		float timer;
 
 		ofEasyCam cam;
-		vector<Point> points;
-};
+		vector<std::unique_ptr<Point>> points;
+		};

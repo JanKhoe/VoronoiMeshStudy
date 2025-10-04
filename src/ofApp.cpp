@@ -1,12 +1,13 @@
 #include "ofApp.h"
 
 
-vector<glm::vec2> ofApp::findIntersection(Point p1, Point p2) {
+vector<glm::vec2> ofApp::findIntersection(CrystallizingPoint& p1, CrystallizingPoint& p2) {
 
-    std::vector<glm::vec2> intersections;
+    vector<glm::vec2> intersections;
 
     glm::vec3 vec = (p1.position - p2.position);
     float d = glm::length(vec);
+    if (d > p1.radius + p2.radius) return intersections;
        
     if( d > p1.radius + p2.radius) {
         // no intersection
@@ -41,9 +42,9 @@ vector<glm::vec2> ofApp::findIntersection(Point p1, Point p2) {
 
     if (!(abs(intersection1.x) > BOUND_X || abs(intersection1.y) > BOUND_Y)) {
         bool IsClosest = true;
-        for (Point p : points) {
-            if (p == p1 || p == p2) continue;
-            if ((glm::length(p.position - intersection1) < glm::length(p1.position - intersection1))) {
+        for (auto& p : points) {
+            if (*p == p1 || *p == p2) continue;
+            if ((glm::length(p->position - intersection1) < glm::length(p1.position - intersection1))) {
                 IsClosest = false;
                 break;
             }
@@ -51,7 +52,7 @@ vector<glm::vec2> ofApp::findIntersection(Point p1, Point p2) {
         if (IsClosest) {
             intersections.push_back(intersection1);
         }
-        
+
     }
 
     
@@ -59,9 +60,9 @@ vector<glm::vec2> ofApp::findIntersection(Point p1, Point p2) {
     // if circles touch at one point, intersection1 == intersection2
     if (intersection1 != intersection2 && !(abs(intersection2.x) > BOUND_X || abs(intersection2.y) > BOUND_Y)) {
         bool IsClosest = true;
-        for (Point p : points) {
-            if (p == p1 || p == p2) continue;
-            if ((glm::length(p.position - intersection2) < glm::length(p1.position - intersection2))) {
+        for (auto& p : points) {
+            if (*p == p1 || *p == p2) continue;
+            if ((glm::length(p->position - intersection2) < glm::length(p1.position - intersection2))) {
                 IsClosest = false;
                 break;
             }
@@ -86,12 +87,10 @@ void ofApp::setup(){
 
 
     for (int i = 0; i < 50; i++) {
-        Point p;
-        p.setup(1, ofColor::fromHsb(ofRandom(255), 200, 255)); // random color
-        float x = ofRandom(-800, 800);
-        float y = ofRandom(-800, 800);
-        p.setPosition(x, y, 0);
-        points.push_back(p);
+        auto p = std::make_unique<CrystallizingPoint>();
+        p->setup(1, ofColor::fromHsb(ofRandom(255), 200, 255));
+        p->setPosition(ofRandom(-800, 800), ofRandom(-800, 800), 0);
+        points.push_back(std::move(p));
     }
 }
 
@@ -101,12 +100,15 @@ void ofApp::update(){
     timer += DELTA;
     if (timer > 1000) return;
 
-    for (Point &p1 : points) {
-        for (Point &p2 : points) {
+    for (auto &p1 : points) {
+        for (auto &p2 : points) {
             if (p2 == p1) {
                 continue;
             }
-            vector<glm::vec2> intersections = findIntersection(p1, p2);
+            CrystallizingPoint* c1 = dynamic_cast<CrystallizingPoint*>(p1.get());
+            CrystallizingPoint* c2 = dynamic_cast<CrystallizingPoint*>(p2.get());
+            if (!c1 || !c2) continue; // skip if not CrystallizingPoint
+            vector<glm::vec2> intersections = findIntersection(*c1, *c2);
             if (intersections.size() > 0) {
 
                 allEdges.insert(allEdges.end(), intersections.begin(), intersections.end());
@@ -114,9 +116,9 @@ void ofApp::update(){
         }
     }
 
-    for (Point &p : points) {
+    for (auto &p : points) {
         
-        p.radius += DELTA;
+        p->update(DELTA);
         
     }
 }
@@ -125,9 +127,9 @@ void ofApp::update(){
 void ofApp::draw(){
     cam.begin(); // start camera
 
-    for (Point p : points) {
+    for (auto& p : points) {
         if (timer > 1000) break;
-        p.draw();
+        p->draw();
         
     }
     ofSetColor(255, 255, 255);
