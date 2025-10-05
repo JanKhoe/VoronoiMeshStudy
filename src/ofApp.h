@@ -3,13 +3,16 @@
 #include "ofMain.h"
 #include "Point.h" 
 #include "CrystallizingPoint.h"
+#include "BisectingPoint.h"
 
-#define BOUND_X 800
-#define BOUND_Y 800
-#define DELTA 0.5
+#define BOUND_X 1000
+#define BOUND_Y 1000
+#define DELTA 1
+#define NUM_POINTS 50
 
 enum simType {
-	CRYSTAL
+	CRYSTAL,
+	BISECT
 };
 
 class ofApp : public ofBaseApp{
@@ -31,9 +34,18 @@ class ofApp : public ofBaseApp{
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
 
+		void checkForIntersections();
+		void findCellShape();
+		void ChangeCell(glm::vec3 lineEq, BisectingPoint& p);
+		glm::vec3 Bisector(glm::vec3 p, glm::vec3 q);
+		bool whichSideOfLine(glm::vec3 point, glm::vec3 A, glm::vec3 B);
+
+
 		vector<glm::vec2> findIntersection(CrystallizingPoint& p1, CrystallizingPoint& p2);
 		vector<glm::vec2> allEdges;
 		float timer;
+
+		simType simulationType;
 
 		ofEasyCam cam;
 		vector<std::unique_ptr<Point>> points;
