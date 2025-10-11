@@ -140,6 +140,9 @@ void ofApp::update(){
         p->update(DELTA);
         
     }
+    if (simulationType == BISECT) {
+        findCellShape();
+    }
 }
 
 void ofApp::findCellShape() {

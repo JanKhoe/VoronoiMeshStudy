@@ -5,10 +5,10 @@
 #include "CrystallizingPoint.h"
 #include "BisectingPoint.h"
 
-#define BOUND_X 1000
-#define BOUND_Y 1000
+#define BOUND_X 800
+#define BOUND_Y 800
 #define DELTA 1
-#define NUM_POINTS 50
+#define NUM_POINTS 10
 
 enum simType {
 	CRYSTAL,

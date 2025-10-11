@@ -11,6 +11,7 @@ public:
 
     vector<glm::vec3> lineEdges;
     vector<int> POIindicies;
+    glm::vec3 dir;
 
 
 };
