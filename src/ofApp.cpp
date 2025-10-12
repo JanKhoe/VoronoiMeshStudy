@@ -11,7 +11,7 @@ void ofApp::setup(){
     
     
     */
-    simulationType = BISECT;
+    simulationType = THREED;
 
 	ofBackground(0);
 	ofEnableDepthTest();
@@ -29,6 +29,9 @@ void ofApp::setup(){
         case BISECT:
             p = std::make_unique<BisectingPoint>();
             break;
+        case THREED:
+            p = std::make_unique<ThreeDPoint>();
+            break;
         default:
             p = nullptr;
             break;
@@ -36,14 +39,28 @@ void ofApp::setup(){
         
         
         p->setup(1, ofColor::fromHsb(ofRandom(255), 200, 255));
+        
         p->setPosition(ofRandom(-BOUND_X, BOUND_X), ofRandom(-BOUND_Y, BOUND_Y), 0);
+        if (simulationType == THREED) {
+            p->setPosition(ofRandom(-BOUND_X, BOUND_X), ofRandom(-BOUND_Y, BOUND_Y), ofRandom(-BOUND_Z, BOUND_Z));
+        }
         points.push_back(std::move(p));
+        
     }
 
-    if (simulationType == BISECT) {
-        findCellShape();
+    if (simulationType == THREED) {
+
+        
+
+        ThreeDPoint* test = dynamic_cast<ThreeDPoint*>(points[0].get());
+        test->vertices = test->cutPolyhedron(test->vertices, glm::vec4(-0.18, 0.4, 0.1, 439), test->position);
+        test->cylinders = test->createWireframeCylinders(test->vertices);
+        //test->addPlane(glm::vec4(0, 0, 1, BOUND_Z / 2));
+
     }
+    
 }
+
 
 vector<glm::vec2> ofApp::findIntersection(CrystallizingPoint& p1, CrystallizingPoint& p2) {
 
