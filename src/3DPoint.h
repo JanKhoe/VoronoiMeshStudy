@@ -36,7 +36,7 @@ public:
 
     vector<Vertex*> vertices;
     vector<ofCylinderPrimitive> cylinders;
-    std::vector<Vertex*> cutPolyhedron(std::vector<Vertex*>& vertices, const glm::vec4& cuttingPlane, const glm::vec3& centerP);
+    std::vector<Vertex*> cutPolyhedron(const glm::vec4& cuttingPlane);
     std::vector<Vertex*> createCube();
 
     std::vector<ofCylinderPrimitive> createWireframeCylinders(const std::vector<Vertex*>& vertices);

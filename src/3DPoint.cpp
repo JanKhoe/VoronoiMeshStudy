@@ -108,18 +108,16 @@ std::vector<ofCylinderPrimitive> ThreeDPoint::createWireframeCylinders(const std
 void ThreeDPoint::update(float deltatime) {}
     
 
-std::vector<Vertex*> ThreeDPoint::cutPolyhedron(std::vector<Vertex*>& vertices,
-    const glm::vec4& cuttingPlane,
-    const glm::vec3& centerP) {
+std::vector<Vertex*> ThreeDPoint::cutPolyhedron(const glm::vec4& cuttingPlane) {
     const float EPSILON = 0.001f;
 
-    // Helper: calculate signed distance from point to plane
+    //calculates signed distance from point to plane
     auto signedDistance = [&](const glm::vec3& point) -> float {
         return cuttingPlane.x * point.x + cuttingPlane.y * point.y +
             cuttingPlane.z * point.z + cuttingPlane.w;
         };
 
-    // Helper: find intersection point between edge and plane
+    //finds intersection point between edge and plane
     auto findIntersection = [&](const glm::vec3& p1, const glm::vec3& p2) -> glm::vec3 {
         float d1 = signedDistance(p1);
         float d2 = signedDistance(p2);
@@ -127,13 +125,13 @@ std::vector<Vertex*> ThreeDPoint::cutPolyhedron(std::vector<Vertex*>& vertices,
         return p1 + t * (p2 - p1);
         };
 
-    // Helper: check if two positions are approximately equal
+    //checks if two positions are approximately equal
     auto positionsEqual = [&](const glm::vec3& p1, const glm::vec3& p2) -> bool {
         return glm::length(p1 - p2) < EPSILON;
         };
 
-    // Determine which side to keep (side containing center)
-    float centerDist = signedDistance(centerP);
+    // Determine which side to keep (side containing the point)
+    float centerDist = signedDistance(position);
     bool keepNegative = (centerDist < 0);
 
     // Classify vertices
@@ -142,7 +140,9 @@ std::vector<Vertex*> ThreeDPoint::cutPolyhedron(std::vector<Vertex*>& vertices,
 
     for (Vertex* v : vertices) {
         float dist = signedDistance(v->position);
-        if ((keepNegative && dist < EPSILON) || (!keepNegative && dist > -EPSILON)) {
+        // A vertex is on the same side as center if their distances have the same sign
+        bool sameSide = (dist * centerDist >= 0);
+        if (sameSide || abs(dist) < EPSILON) { // Keep if same side OR on the plane
             keptVertices.push_back(v);
         }
         else {
@@ -150,44 +150,49 @@ std::vector<Vertex*> ThreeDPoint::cutPolyhedron(std::vector<Vertex*>& vertices,
         }
     }
 
-    // Find all cut edges and create new vertices at intersections
+    // Find all cut edges and create new vertices at intersections.
+    // MOre generally if the plane intersects a edge formed by POINTS AB then create a new vertex on that line and keep/cut either A or B
     std::vector<Vertex*> newVertices;
     std::vector<std::pair<Vertex*, Vertex*>> edgeMappings; // (keptVertex, newVertex)
 
+    //for each verx you kept iterate through them to find out which neighbours to remove.
     for (Vertex* kept : keptVertices) {
         std::vector<Vertex*> neighborsToRemove;
+        std::vector<std::pair<Vertex*, glm::vec3>> newVerticesToCreate;
 
         for (Vertex* neighbor : kept->neighbors) {
             // Check if this neighbor is being removed
             if (std::find(removedVertices.begin(), removedVertices.end(), neighbor) != removedVertices.end()) {
-                // Edge is cut - create new vertex at intersection
+                // Edge is cut - calculate intersection position
                 glm::vec3 intersectionPos = findIntersection(kept->position, neighbor->position);
-
-                // Check if we already created a vertex at this position
-                Vertex* newVertex = nullptr;
-                for (Vertex* nv : newVertices) {
-                    if (positionsEqual(nv->position, intersectionPos)) {
-                        newVertex = nv;
-                        break;
-                    }
-                }
-
-                // Create new vertex if it doesn't exist
-                if (newVertex == nullptr) {
-                    newVertex = new Vertex(intersectionPos);
-                    newVertices.push_back(newVertex);
-                }
-
-                // Connect kept vertex to new vertex
-                kept->addNeighbor(newVertex);
-                newVertex->addNeighbor(kept);
-
-                // Store mapping for later face creation
-                edgeMappings.push_back({ kept, newVertex });
-
-                // Mark this neighbor for removal from kept vertex's neighbor list
+                newVerticesToCreate.push_back({ neighbor, intersectionPos });
                 neighborsToRemove.push_back(neighbor);
             }
+        }
+
+        // Now create/connect new vertices
+        for (auto& [removedNeighbor, intersectionPos] : newVerticesToCreate) {
+            // Check if we already created a vertex at this position
+            Vertex* newVertex = nullptr;
+            for (Vertex* nv : newVertices) {
+                if (positionsEqual(nv->position, intersectionPos)) {
+                    newVertex = nv;
+                    break;
+                }
+            }
+
+            // Create new vertex if it doesn't exist
+            if (newVertex == nullptr) {
+                newVertex = new Vertex(intersectionPos);
+                newVertices.push_back(newVertex);
+            }
+
+            // Connect kept vertex to new vertex
+            kept->addNeighbor(newVertex);
+            newVertex->addNeighbor(kept);
+
+            // Store mapping for later face creation
+            edgeMappings.push_back({ kept, newVertex });
         }
 
         // Remove connections to removed vertices
@@ -198,7 +203,12 @@ std::vector<Vertex*> ThreeDPoint::cutPolyhedron(std::vector<Vertex*>& vertices,
 
     // Connect new vertices to form the cut face
     // New vertices lie on the cutting plane and need to be connected in cyclic order
-    if (newVertices.size() >= 3) {
+    if (newVertices.size() == 2) {
+        // Special case: only 2 new vertices, just connect them directly
+        newVertices[0]->addNeighbor(newVertices[1]);
+        newVertices[1]->addNeighbor(newVertices[0]);
+    }
+    else if (newVertices.size() >= 3) {
         // Calculate centroid of new vertices
         glm::vec3 centroid(0, 0, 0);
         for (Vertex* nv : newVertices) {
@@ -235,6 +245,19 @@ std::vector<Vertex*> ThreeDPoint::cutPolyhedron(std::vector<Vertex*>& vertices,
 
             current->addNeighbor(next);
             next->addNeighbor(current);
+        }
+    }
+
+    // Ensure no kept vertex has edges to removed vertices
+    for (Vertex* kept : keptVertices) {
+        std::vector<Vertex*> toRemove;
+        for (Vertex* neighbor : kept->neighbors) {
+            if (std::find(removedVertices.begin(), removedVertices.end(), neighbor) != removedVertices.end()) {
+                toRemove.push_back(neighbor);
+            }
+        }
+        for (Vertex* r : toRemove) {
+            kept->removeNeighbor(r);
         }
     }
 

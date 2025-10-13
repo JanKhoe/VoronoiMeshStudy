@@ -52,16 +52,25 @@ void ofApp::setup(){
 
         
 
-        ThreeDPoint* test = dynamic_cast<ThreeDPoint*>(points[0].get());
-        test->vertices = test->cutPolyhedron(test->vertices, glm::vec4(-0.18, 0.4, 0.1, 439), test->position);
-        test->cylinders = test->createWireframeCylinders(test->vertices);
+        //ThreeDPoint* test = dynamic_cast<ThreeDPoint*>(points[0].get());
+        findIntersectingPlanes();
+        //test->vertices = test->cutPolyhedron(test->vertices, glm::vec4(1, 1, 1, 1600), test->position);
+        //test->vertices = test->cutPolyhedron(test->vertices, glm::vec4(-0.0814, -0.7084, -0.7041, 22), test->position);
+        //test->vertices = test->cutPolyhedron(test->vertices, glm::vec4(-0.08686, -0.66919, 0.7379, 43), test->position);
+        //test->vertices = test->cutPolyhedron(test->vertices, glm::vec4(-0.25699, -0.8416, 0.4749, 603), glm::vec3(302,711,-718));
+        //test->cylinders = test->createWireframeCylinders(test->vertices);
         //test->addPlane(glm::vec4(0, 0, 1, BOUND_Z / 2));
+
+        for (auto& p : points) {
+            ThreeDPoint* t = dynamic_cast<ThreeDPoint*>(p.get());
+            t->cylinders = t->createWireframeCylinders(t->vertices);
+        }
 
     }
     
 }
 
-
+//FOR CRYSTAL SIMULATION TYPES
 vector<glm::vec2> ofApp::findIntersection(CrystallizingPoint& p1, CrystallizingPoint& p2) {
 
     vector<glm::vec2> intersections;
@@ -139,6 +148,61 @@ vector<glm::vec2> ofApp::findIntersection(CrystallizingPoint& p1, CrystallizingP
 }
 
 
+//FOR 3D SIMULATION TYPES
+void ofApp::findIntersectingPlanes() {
+    for (auto& p1 : points) {
+        for (auto& p2 : points) {
+            if (p1 == p2) continue;
+
+            //get the equation of the bisecting plane given the normal and a point on that plane.
+            glm::vec3 P1P2 = p2->position - p1->position;
+            glm::vec3 point = p1->position + P1P2 / 2;
+            glm::vec3 normal = glm::normalize(P1P2);
+            float d = -(normal.x * point.x + normal.y * point.y + normal.z * point.z);
+            glm::vec4 BisectingPlane = glm::vec4(normal.x, normal.y, normal.z, d);
+            //std::cout << "Bisecting plane found between points: " << p1->position << " and " << p2->position << "|| Bisecting plane: " << BisectingPlane << "\n";
+
+            //find if that plane intersects one of the edges.
+            //topologically you cannot intersect one edge of a convex polygon without intersecting the entire polygon.
+            ThreeDPoint* p = dynamic_cast<ThreeDPoint*>(p1.get());
+            vector<std::pair<int, int>> allEdges = choose2(p->vertices.size());
+            for (std::pair<int, int> pair : allEdges) {
+                glm::vec3 edgeDirVector = glm::normalize(p->vertices[pair.second]->position - p->vertices[pair.first]->position);
+
+                //taking the dot product of the plane's normal and the edge's direction vector will determine if this edge is parrallel to the plane.
+                if (glm::dot(edgeDirVector, normal) != 0) {
+                    //their dot product is not 0 they intersect at one point.
+                    // Need to check if that point is within the bounds of the line segment given by the endpoints vertices[pair first and second]
+
+                    float t = -(BisectingPlane.x*p1->position.x + BisectingPlane.y*p1->position.y + BisectingPlane.z*p1->position.z + BisectingPlane.w) 
+                        / (BisectingPlane.x * edgeDirVector.x + BisectingPlane.y * edgeDirVector.y + BisectingPlane.z * edgeDirVector.z);
+
+                    //If the POI of the line and point is not in the line segment then ignore this pairing
+                    float test = glm::length((p->vertices[pair.second]->position - p->vertices[pair.first]->position));
+                    if (t < 0 || t > test) {
+                        continue;
+                    }
+                    //otherwise the plane does cut into the polyhedron
+                    else {
+                        p->vertices = p->cutPolyhedron(BisectingPlane);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+//helper function for selecting all pairs of vertices to form edges
+std::vector<std::pair<int, int>> ofApp::choose2(int n) {
+    std::vector<std::pair<int, int>> pairs;
+    for (int i = 0; i < n; ++i) {
+        for (int j = i + 1; j < n; ++j) {
+            pairs.emplace_back(i, j);
+        }
+    }
+    return pairs;
+}
 
 //--------------------------------------------------------------
 void ofApp::update(){

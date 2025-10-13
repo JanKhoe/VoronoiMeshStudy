@@ -10,7 +10,7 @@
 #define BOUND_Y 800
 #define BOUND_Z 800
 #define DELTA 1
-#define NUM_POINTS 1
+#define NUM_POINTS 10
 
 enum simType {
 	CRYSTAL,
@@ -39,12 +39,14 @@ class ofApp : public ofBaseApp{
 
 		void checkForIntersections();
 		void findCellShape();
+		void findIntersectingPlanes();
 		void ChangeCell(glm::vec3 lineEq, BisectingPoint& p);
 		glm::vec3 Bisector(glm::vec3 p, glm::vec3 q);
 		bool whichSideOfLine(glm::vec3 point, glm::vec3 A, glm::vec3 B);
 		
 		vector<glm::vec2> findIntersection(CrystallizingPoint& p1, CrystallizingPoint& p2);
 		vector<glm::vec2> allEdges;
+		std::vector<std::pair<int, int>> choose2(int n);
 		float timer;
 
 		simType simulationType;
